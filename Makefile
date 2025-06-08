@@ -1,6 +1,6 @@
 CC = clang
-CFLAGS = -Wall -Wextra -std=c99 -Wpedantic -ggdb
-CLIBS = 
+CFLAGS = -Wall -Wextra -Wpedantic -ggdb
+CLIBS =
 
 SRC = src
 BIN = bin
@@ -10,7 +10,8 @@ EXE_NAME = main
 EXE = $(BIN)/$(EXE_NAME)
 
 TEST_TGT_NAME = test_target
-TEST_TGT = $(BIN)/$(TEST_TGT_NAME)
+TEST_TGT_DIR = testfiles
+TEST_TGT = $(TEST_TGT_DIR)/$(TEST_TGT_NAME)
 
 all: $(EXE) $(TEST_TGT)
 
@@ -20,13 +21,16 @@ $(EXE): $(OBJ)/$(EXE_NAME).o
 
 $(OBJ)/$(EXE_NAME).o: $(SRC)/$(EXE_NAME).c
 	@mkdir -p $(OBJ)
-	$(CC) $(FLAGS) -c -o $@ $^
+	$(CC) $(CFLAGS) -c -o $@ $^
 
 $(TEST_TGT): $(OBJ)/$(TEST_TGT_NAME).o
-	@mkdir -p $(OBJ)
+	@mkdir -p $(TEST_TGT_DIR)
 	$(CC) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 $(OBJ)/$(TEST_TGT_NAME).o: $(SRC)/$(TEST_TGT_NAME).c
 	@mkdir -p $(OBJ)
-	$(CC) $(FLAGS) -c -o $@ $^
+	$(CC) $(CFLAGS) -c -o $@ $^
+
+run: $(EXE) $(TEST_TGT)
+	$(EXE)
 

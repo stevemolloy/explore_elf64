@@ -5,35 +5,40 @@
 #include <stdio.h>
 #include <stdint.h>
 
-typedef enum {
-    ENDIAN_LITTLE,
-    ENDIAN_BIG,
-} Endianness;
+// TODO: This assumes little-endianness. Not good.
+typedef struct {
+    uint32_t magic;
+    uint8_t bits_32_or_64;
+    uint8_t endianness;
+    uint8_t version;
+    uint8_t os_abi;
+    uint8_t os_abi_version;
+    uint8_t padding[7];
+    uint16_t file_type;
+    uint16_t machine;
+    uint32_t e_version;
+    uint64_t entry;
+    uint64_t ph_off;
+    uint64_t sh_off;
+    uint32_t eflags;
+    uint16_t ehsize;
+    uint16_t phentsize;
+    uint16_t phnum;
+    uint16_t shentsize;
+    uint16_t shnum;
+    uint16_t shstrindx;
+} ElfHeader;
 
-// TODO: All these functions assumed little-endianness. Not good.
-uint8_t get_u8(char **cursor) {
-    uint8_t retval = *(uint8_t*)*cursor;
-    *cursor += 1;
-    return retval;
-}
-
-uint16_t get_u16(char **cursor) {
-    uint16_t retval = *(uint16_t*)*cursor;
-    *cursor += 2;
-    return retval;
-}
-
-uint32_t get_u32(char **cursor) {
-    uint32_t retval = *(uint32_t*)*cursor;
-    *cursor += 4;
-    return retval;
-}
-
-uint64_t get_u64(char **cursor) {
-    uint64_t retval = *(uint64_t*)*cursor;
-    *cursor += 8;
-    return retval;
-}
+typedef struct {
+    uint32_t type;
+    uint32_t flags;
+    uint64_t offset;
+    uint64_t vaddr;
+    uint64_t paddr;
+    uint64_t filesz;
+    uint64_t memsz;
+    uint64_t align;
+} ProgramHeader;
 
 int main(void) {
     const char *target_path = "./testfiles/test_target";
@@ -67,42 +72,60 @@ int main(void) {
 
     char *cursor = buffer;
 
-    uint32_t magic = get_u32(&cursor);
+    ElfHeader elf_header = *(ElfHeader*)cursor;
+    cursor += sizeof(elf_header);
 
-    unsigned int bits;
-    uint8_t bits_32_or_64 = get_u8(&cursor);
-    if (bits_32_or_64 == 1) bits = 32;
-    else if (bits_32_or_64 == 2) bits = 64;
-    else {
-        fprintf(stderr, "ERROR: Could not interpret the bits field of the header (%d). Something is corrupted.\n", bits_32_or_64);
+    if (elf_header.bits_32_or_64 != 2) {
+        fprintf(stderr, "ERROR: Exe is not 64 bits. This program assumes 64 bits\n");
+        return 1;
+    }
+    const unsigned int bits = 64;
+
+    if (elf_header.endianness != 1) {
+        fprintf(stderr, "ERROR: Big endian file found. This program assumes little endianness\n");
         return 1;
     }
 
-    uint8_t endianness = get_u8(&cursor);
-    if (endianness != 1) {
-        fprintf(stderr, "ERROR: Big endian file found. This exe assumes little endianness\n");
-        return 1;
-    }
-
-    uint8_t version = get_u8(&cursor);
-    uint8_t os_abi = get_u8(&cursor);
-    uint8_t os_abi_version = get_u8(&cursor);
-    
-    cursor += 7;  // Padding field
-
-    uint16_t file_type = get_u16(&cursor);
-
-    printf("INFO: Magic = 0x%x\n", magic);
-    printf("INFO: Class = %d\n", bits_32_or_64);
+    printf("================================\n");
+    printf("* Header:\n");
+    printf("================================\n");
+    printf("INFO: Magic = 0x%X\n", elf_header.magic);
+    printf("INFO: Class = %d\n", elf_header.bits_32_or_64);
     printf("\tTherefore bits = %d\n", bits);
-    printf("INFO: Endianness = %d\n", endianness);
-    printf("INFO: Version = %d\n", version);
-    printf("INFO: OS ABI = %d\n", os_abi);
-    printf("INFO: OS ABI Version = %d\n", os_abi_version);
-    printf("INFO: File Type = 0x%04X", file_type);
+    printf("INFO: Endianness = %d\n", elf_header.endianness);
+    printf("INFO: Version = %d\n", elf_header.version);
+    printf("INFO: OS ABI = %d\n", elf_header.os_abi);
+    printf("INFO: OS ABI Version = %d\n", elf_header.os_abi_version);
+    printf("INFO: File Type = 0x%X\n", elf_header.file_type);
+    printf("INFO: Machine = 0x%X\n", elf_header.machine);
+    printf("INFO: e_version = 0x%X\n", elf_header.e_version);
+    printf("INFO: entry = 0x%lX\n", elf_header.entry);
+    printf("INFO: ph_off = 0x%lX\n", elf_header.ph_off);
+    printf("INFO: sh_off = 0x%lX\n", elf_header.sh_off);
+    printf("INFO: eflags = 0x%X\n", elf_header.eflags);
+    printf("INFO: ehsize = 0x%X\n", elf_header.ehsize);
+    printf("INFO: phentsize = 0x%X\n", elf_header.phentsize);
+    printf("\tsizeof(ProgramHeader) = 0x%lX\n", sizeof(ProgramHeader));
+    printf("INFO: phnum = %d\n", elf_header.phnum);
+    printf("INFO: shentsize = 0x%X\n", elf_header.shentsize);
+    printf("INFO: shnum = %d\n", elf_header.shnum);
+    printf("INFO: shstrindx = 0x%X\n", elf_header.shstrindx);
+    printf("================================\n");
+    printf("Header size: 0x%lX\n", sizeof(elf_header));
+    printf("================================\n");
 
-    fclose(tgt_file);
+    cursor = buffer + elf_header.ph_off;
+
+    ProgramHeader *p_header = malloc(elf_header.phnum * sizeof(ProgramHeader));
+    if (p_header == NULL) {
+        fprintf(stderr, "ERROR: Buy more RAM\n");
+        return 1;
+    }
+    memcpy(p_header, cursor, elf_header.phnum * sizeof(ProgramHeader));
+
+    free(p_header);
     free(buffer);
+    fclose(tgt_file);
 
     return 0;
 }

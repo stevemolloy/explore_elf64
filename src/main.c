@@ -40,6 +40,19 @@ typedef struct {
     uint64_t align;
 } ProgramHeader;
 
+typedef struct {
+    uint32_t name;
+    uint32_t type;
+    uint64_t flags;
+    uint64_t addr;
+    uint64_t offset;
+    uint64_t size;
+    uint32_t link;
+    uint32_t info;
+    uint64_t addralign;
+    uint64_t entsize;
+} SectionHeader;
+
 int main(void) {
     const char *target_path = "./testfiles/test_target";
 
@@ -73,6 +86,8 @@ int main(void) {
     char *cursor = buffer;
 
     ElfHeader elf_header = *(ElfHeader*)cursor;
+    assert(sizeof(ProgramHeader) == elf_header.phentsize);
+    assert(sizeof(SectionHeader) == elf_header.shentsize);
     cursor += sizeof(elf_header);
 
     if (elf_header.bits_32_or_64 != 2) {
@@ -115,7 +130,6 @@ int main(void) {
     printf("================================\n");
 
     cursor = buffer + elf_header.ph_off;
-
     ProgramHeader *p_header = malloc(elf_header.phnum * sizeof(ProgramHeader));
     if (p_header == NULL) {
         fprintf(stderr, "ERROR: Buy more RAM\n");
@@ -123,6 +137,16 @@ int main(void) {
     }
     memcpy(p_header, cursor, elf_header.phnum * sizeof(ProgramHeader));
 
+    cursor = buffer + elf_header.sh_off;
+    assert(sizeof(SectionHeader) == elf_header.shentsize);
+    SectionHeader *s_header = malloc(elf_header.shnum * sizeof(SectionHeader));
+    if (s_header == NULL) {
+        fprintf(stderr, "ERROR: Buy more RAM\n");
+        return 1;
+    }
+    memcpy(s_header, cursor, elf_header.shnum * sizeof(SectionHeader));
+
+    free(s_header);
     free(p_header);
     free(buffer);
     fclose(tgt_file);

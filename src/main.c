@@ -146,6 +146,13 @@ int main(void) {
     }
     memcpy(s_header, cursor, elf_header.shnum * sizeof(SectionHeader));
 
+    for (size_t i=0; i<elf_header.phnum; i++) {
+        printf("Segment #%zu:\n", i);
+        printf("\tSize on disk = %lu bytes\n", p_header[i].filesz);
+        printf("\tFlags = %d\n", p_header[i].flags);
+        printf("\tLocation in file = 0x%lX\n", p_header[i].offset);
+    }
+
     free(s_header);
     free(p_header);
     free(buffer);

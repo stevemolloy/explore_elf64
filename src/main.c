@@ -58,7 +58,8 @@ typedef struct {
 } SectionHeader;
 
 int main(void) {
-    const char *target_path = "./testfiles/test_target";
+    // const char *target_path = "./testfiles/test_target";
+    const char *target_path = "./testfiles/hello";
 
     FILE *tgt_file = fopen(target_path, "r");
     if (tgt_file == NULL) {

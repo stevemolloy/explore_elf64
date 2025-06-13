@@ -5,6 +5,10 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#define SEGFLAG_X 0x1
+#define SEGFLAG_W 0x2
+#define SEGFLAG_R 0x4
+
 // TODO: This assumes little-endianness. Not good.
 typedef struct {
     uint32_t magic;
@@ -146,11 +150,28 @@ int main(void) {
     }
     memcpy(s_header, cursor, elf_header.shnum * sizeof(SectionHeader));
 
+    printf("================================\n");
+    printf("Executable segment(s)\n");
+    printf("================================\n");
     for (size_t i=0; i<elf_header.phnum; i++) {
+        if ((p_header[i].flags & SEGFLAG_X) <= 0)
+            continue;
+
         printf("Segment #%zu:\n", i);
-        printf("\tSize on disk = %lu bytes\n", p_header[i].filesz);
-        printf("\tFlags = %d\n", p_header[i].flags);
+        printf("\tType = 0x%X\n", p_header[i].type);
+        printf("\tFlags = 0x%X\n", p_header[i].flags);
         printf("\tLocation in file = 0x%lX\n", p_header[i].offset);
+        printf("\tSize on disk = %lu bytes\n", p_header[i].filesz);
+        printf("\tSize in mem  = %lu bytes\n", p_header[i].memsz);
+
+        uint8_t *data = (uint8_t*)malloc(p_header[i].filesz);
+        memcpy(data, buffer+p_header[i].offset, p_header[i].filesz);
+
+        for (size_t j=0; j<p_header[i].filesz; j++) {
+            if (j % 16 == 0) printf("\n0x%lX: ", p_header[i].offset+j);
+            else if (j % 8 == 0) printf("  ");
+            printf("0x%02X ", data[j]);
+        }
     }
 
     free(s_header);

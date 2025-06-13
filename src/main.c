@@ -172,7 +172,10 @@ int main(void) {
             else if (j % 8 == 0) printf("  ");
             printf("0x%02X ", data[j]);
         }
+
+        free(data);
     }
+    printf("\n");
 
     free(s_header);
     free(p_header);
